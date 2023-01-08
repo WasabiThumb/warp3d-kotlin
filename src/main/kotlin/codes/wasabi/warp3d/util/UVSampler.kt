@@ -56,7 +56,22 @@ class UVSampler(topLeft: Vector2D, topRight: Vector2D, bottomLeft: Vector2D, bot
         t = bottomRight.x + xAdd
         h = bottomRight.y + yAdd
 
-        type = makeFlag(horizontal, 1) or makeFlag(vertical, 0)
+        var t = makeFlag(horizontal, 1) or makeFlag(vertical, 0)
+        if (t == 0) {
+            // check angles for special case
+            val dotA = topRight.subtract(topLeft).dot(bottomLeft.subtract(topLeft))
+            if (abs(dotA) < MathUtil.EPSILON) {
+                val dotB = topLeft.subtract(topRight).dot(bottomRight.subtract(topRight))
+                if (abs(dotB) < MathUtil.EPSILON) {
+                    t = 4
+                }
+            }
+        }
+        type = t
+    }
+
+    fun getType(): Int {
+        return type
     }
 
     private fun makeFlag(value: Boolean, place: Int): Int {
@@ -103,7 +118,7 @@ class UVSampler(topLeft: Vector2D, topRight: Vector2D, bottomLeft: Vector2D, bot
         val bx = u + (t - u) * sampleU
 
         val diffX = bx - tx
-        if (diffX == 0.0) {
+        if (abs(diffX) < MathUtil.ZERO_TOLERANCE) {
             val ty = l + (k - l) * sampleU
             val by = j + (h - j) * sampleU
             return (b - ty) / (by - ty)
@@ -133,6 +148,24 @@ class UVSampler(topLeft: Vector2D, topRight: Vector2D, bottomLeft: Vector2D, bot
             } else {
                 sampleV(samplePos, u)
             }
+            if (v !in 0.0..1.0) return false
+            out[0] = u
+            out[1] = v
+            return true
+        } else if (type == 4) {
+            // Quad is a rectangle, but no edges are aligned with any axes
+            val mt = (k - l) / (o - p)
+            val ms = -1.0 / mt
+            val bt = samplePos.y - (mt * samplePos.x)
+            val bs1 = l - (ms * p)
+            val bs2 = k - (ms * o)
+            val dm = mt - ms
+            val min = (bs1 - bt) / dm
+            val max = (bs2 - bt) / dm
+            val u = (samplePos.x - min) / (max - min)
+
+            if (u !in 0.0..1.0) return false
+            val v = sampleV(samplePos, u)
             if (v !in 0.0..1.0) return false
             out[0] = u
             out[1] = v

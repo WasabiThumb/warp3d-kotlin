@@ -25,11 +25,13 @@ import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImageOp
+import java.text.DecimalFormat
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JSlider
 import javax.swing.SwingConstants
+import kotlin.math.pow
 
 class RenderPanel(pitch: JSlider, yaw: JSlider, roll: JSlider): JPanel() {
 
@@ -37,16 +39,29 @@ class RenderPanel(pitch: JSlider, yaw: JSlider, roll: JSlider): JPanel() {
     private var rotation: Quaternion = Quaternion.IDENTITY
     private var position: Vector3D = Vector3D(0.0, 0.0, 3.0)
     private var camera: Camera = Camera(960)
-    private var quad: Quad3D = Quad3D(
-        Vector3D(-1.0, -1.0, -1.0),
-        Vector3D(1.0, -1.0, -1.0),
-        Vector3D(-1.0, 1.0, -1.0),
-        Vector3D(1.0, 1.0, -1.0),
-        color = Color.WHITE,
-        texture = createTexture()
-    )
+    private var quads: Array<Quad3D>
+    private var numToRender = 2
+    private var decimalFormat = DecimalFormat("0.##")
 
     init {
+        val tex = createTexture()
+        quads = arrayOf(
+            Quad3D(
+                Vector3D(-1.0, -1.0, -1.0),
+                Vector3D(1.0, -1.0, -1.0),
+                Vector3D(-1.0, 1.0, -1.0),
+                Vector3D(1.0, 1.0, -1.0),
+                texture = tex
+            ),
+            Quad3D(
+                Vector3D(1.0, -1.0, 1.0),
+                Vector3D(-1.0, -1.0, 1.0),
+                Vector3D(1.0, 1.0, 1.0),
+                Vector3D(-1.0, 1.0, 1.0),
+                texture = tex
+            )
+        )
+
         pitch.addChangeListener { updateRotation(pitch, yaw, roll) }
         yaw.addChangeListener { updateRotation(pitch, yaw, roll) }
         roll.addChangeListener { updateRotation(pitch, yaw, roll) }
@@ -79,11 +94,32 @@ class RenderPanel(pitch: JSlider, yaw: JSlider, roll: JSlider): JPanel() {
         g2.background = Color(40, 40, 40)
         g2.clearRect(0, 0, 960, 960)
         g2.dispose()
-        Warp3D.renderQuad(image, quad, camera, position, rotation)
+        val dict = HashMap<Quad3D, Double>()
+        for (quad in quads) {
+            val q = quad.rotate(rotation).translate(position)
+            val sum = q.topLeft.add(q.topRight).add(q.bottomLeft).add(q.bottomRight)
+            dict[q] = (sum.x / 4.0).pow(2.0) + (sum.y / 4.0).pow(2.0) + (sum.z / 4.0).pow(2.0)
+        }
+        val list = dict.keys.sortedByDescending { dict[it] }
+        val startTime = System.nanoTime()
+        var i = -1
+        for (q in list) {
+            i++
+            if (i >= numToRender) return
+            q.project(camera)?.render(image);
+        }
+        val elapsed = System.nanoTime() - startTime
+        val elapsedMillis = elapsed / 1.0e6
         if (g is Graphics2D) {
             g.drawImage(image, AffineTransformOp(AffineTransform.getScaleInstance(0.5, 0.5), AffineTransformOp.TYPE_BILINEAR), 0, 0)
         } else {
             g?.drawImage(image, 0, 0, 480, 480, this)
+        }
+        val formatted = decimalFormat.format(elapsedMillis)
+        g?.let {
+            it.font = Font(Font.MONOSPACED, Font.PLAIN, 20)
+            it.color = Color.RED
+            it.drawString("$formatted ms", 5, 20)
         }
     }
 

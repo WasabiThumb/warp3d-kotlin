@@ -34,6 +34,10 @@ data class Vector2D(var x: Double, var y: Double) {
         return Vector2D(x + other.x, y + other.y)
     }
 
+    fun subtract(other: Vector2D): Vector2D {
+        return Vector2D(x - other.x, y - other.y)
+    }
+
     fun rotate(radians: Double): Vector2D {
         if (abs(radians) < MathUtil.ZERO_TOLERANCE) return copy()
         val cosAng = cos(radians)
@@ -42,6 +46,10 @@ data class Vector2D(var x: Double, var y: Double) {
             x * cosAng - y * sinAng,
             x * sinAng + y * cosAng
         )
+    }
+
+    fun dot(other: Vector2D): Double {
+        return (x * other.x) + (y * other.y)
     }
 
 }

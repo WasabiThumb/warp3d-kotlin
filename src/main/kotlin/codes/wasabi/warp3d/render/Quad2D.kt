@@ -72,7 +72,7 @@ data class Quad2D(
         )
     }
 
-    fun render(canvas: BufferedImage) {
+    fun render(canvas: BufferedImage): Int {
         if (texture == null) {
             val g2d = canvas.createGraphics()
             g2d.color = this.color
@@ -88,6 +88,7 @@ data class Quad2D(
                 bottomLeft.y.toInt()
             ), 4)
             g2d.dispose()
+            return 4
         } else {
             val pcRed = this.color.red / 255.0
             val pcGreen = this.color.green / 255.0
@@ -115,6 +116,7 @@ data class Quad2D(
                     canvas.setRGB(x, y, (0xFF shl 24) or ((red and 0xFF) shl 16) or ((green and 0xFF) shl 8) or ((blue and 0xFF) shl 0))
                 }
             }
+            return sampler.getType()
         }
     }
 
